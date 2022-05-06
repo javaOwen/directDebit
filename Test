@@ -1,0 +1,58 @@
+-- prevent set or regional settings from interfering with 
+-- interpretation of dates / literals
+SET DATEFIRST  7, -- 1 = Monday, 7 = Sunday
+    DATEFORMAT mdy, 
+    LANGUAGE   US_ENGLISH;
+-- assume the above is here in all subsequent code blocks.
+
+DECLARE @test1 TABLE(DayAbb VARCHAR(40), amt int, description varchar(40), rn int);
+
+DECLARE @StartDate  date = '20220101';
+
+DECLARE @EndDate date = DATEADD(DAY, -1, DATEADD(YEAR, 1, @StartDate));
+
+;WITH seq(n) AS 
+(
+  SELECT 0 UNION ALL SELECT n + 1 FROM seq
+  WHERE n < DATEDIFF(DAY, @StartDate, @EndDate)
+),
+dates_list(d) AS 
+(
+   SELECT DATEADD(DAY, n, @StartDate) FROM seq
+),
+src AS
+(
+  SELECT
+	TheDateABS      = DATEPART(DAYOFYEAR, d),
+	TheDate         = CONVERT(date, d),
+    TheDay          = DATEPART(DAY,       d),
+    TheDayName      = DATENAME(WEEKDAY,   d),
+    TheWeek         = DATEPART(WEEK,      d),
+    TheISOWeek      = DATEPART(ISO_WEEK,  d),
+    TheDayOfWeek    = DATEPART(WEEKDAY,   d),
+    TheMonth        = DATEPART(MONTH,     d),
+    TheMonthName    = DATENAME(MONTH,     d),
+    TheQuarter      = DATEPART(Quarter,   d),
+    TheYear         = DATEPART(YEAR,      d),
+    TheFirstOfMonth = DATEFROMPARTS(YEAR(d), MONTH(d), 1),
+    TheLastOfYear   = DATEFROMPARTS(YEAR(d), 12, 31),
+    TheDayOfYear    = DATEPART(DAYOFYEAR, d)
+  FROM dates_list
+),
+mp as
+(
+select	* 
+from	monthly_payments
+)
+--SELECT	src.*, mp.amount, mp.description
+--SELECT	src.TheDateABS, mp.amount, mp.description
+SELECT	src.*, mp.*
+--CummuSum = SUM(mp.amount) OVER (ORDER BY mp.amount)
+FROM	src
+	inner join mp on src.TheDay = mp.dt
+
+ORDER BY TheDate
+OPTION (MAXRECURSION 0)
+
+
+  
